@@ -1,0 +1,52 @@
+#! /bin/sh
+# Clone prefix settings to copy-mode-vi to utilize copy-mode status settings
+# But it's not a reasonable operation :(
+# # shellcheck source=/usr/include/kiss/see
+# type "print" > /dev/null 2>&1 && [ ! -z "${SEE+x}" ] ||
+# . "${MNGR_ROOT-}/usr/include/kiss/see"
+#
+# # shellcheck source=/usr/include/kiss/init
+# type "env_reset" > /dev/null 2>&1 && [ ! -z "${INIT+x}" ] ||
+# 	. "${MNGR_ROOT-}/usr/include/kiss/init"
+index=-1
+while IFS="$newline" read -r line
+do
+	: $((index += 1))
+	option=$(printf '%s' "$line" | awk -F "-T prefix" '{print $1}' | awk '{print $2}')
+	part_2=$(printf '%s' "$line" | awk -F "-T prefix" '{print $2}')
+	key=$(   printf '%s' "$part_2" | awk '{print $1}')
+	key_escape="$key"
+	case "$key" in
+		*\\*)
+			key_escape="$(/ "sed \"s|\\|\\\\\\|g\" << EOF${newline}\$key${newline}EOF")" ||
+				tmux display -p "[$index] sed failed at '$key' -> '$key_escape'"
+			[ -n "${key_escape:+x}" ] ||
+			tmux display -p "[$index] sed failed at '$key' -> '$key_escape'"
+		esac
+	part_2_copy=$(tmux list-keys -T copy-mode-vi |
+		awk -F "-T copy-mode-vi" '{print $2}' | awk "\$1 == \"$key_escape\" {print}")
+	[ -n "${part_2_copy:+x}" ] ||
+	{
+		tmux bind-key $option -T copy-mode-vi $part_2 &&
+		tmux display -p "[$index] \$key applied  = '$key'" ||
+		tmux display -p "[$index] failed to apply= '$key'"
+		continue
+	}
+	tmux bind-key $option -T copy-mode-vi $part_2 &&
+	{
+		tmux display -p "[$index] \$key overrided= '$key'"
+	} ||
+	{
+		# print '$key' "$key"     | tee -a "${INIT_OUTPUT-$STEM_OUTPUT}" > "${TTY-/dev/stdout}"
+		tmux display -p "[$index] \$key          = '$key'"
+		# eval "value=\"\${part_2#*\$key}\""
+		# print '$value' "$value" | tee -a "${INIT_OUTPUT-$STEM_OUTPUT}" > "${TTY-/dev/stdout}"
+
+		# tmux display -p "\$value = $value" # \\ got \
+		tmux display -p "[$index] \$part_2       = '$part_2'"
+		tmux display -p "[$index] \$part_2_copy  = '$part_2_copy'"
+		tmux display -p "[$index] failed to apply= '$key'"
+	}
+	# exec < /dev/tty
+	# read -r < /dev/tty
+done < <(tmux list-keys -T $1)

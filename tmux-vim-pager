@@ -1,0 +1,27 @@
+#! /bin/sh
+if [[ $1 == "strip" ]]; then
+	exec cat | sed -e :a -e '/./,$!d;/^\n*$/{$d;N;};/\n$/ba'
+else
+	reset_cmd='tmux bind c new-window &&
+		tmux bind n next-window &&
+		tmux bind Left select-pane -L &&
+		tmux bind Up select-pane -U &&
+		tmux bind Down select-pane -D &&
+		tmux bind Right select-pane -R
+			'
+	tmux capture-pane -S -
+	exec tmux display-popup -BE \
+		-h `tmux display -p '#{pane_height}'` \
+		-w `tmux display -p '#{pane_width}'` \
+		-x `tmux display -p '#{pane_left}'` \
+		-y $((`tmux display -p '#{pane_bottom}'` + 1)) \
+		"tmux new-session -s popup \"
+			tmux set-option status off &&
+				tmux bind c run-shell 'tmux kill-session -t popup && tmux new-window -t ${session_name} && ${reset_cmd}' &&
+				tmux bind n run-shell 'tmux kill-session -t popup && tmux next-window -t ${session_name} && ${reset_cmd}' &&
+				tmux bind Left run-shell 'tmux kill-session -t popup && tmux select-pane -L -t ${session_name} && ${reset_cmd}' &&
+				tmux bind Right run-shell 'tmux kill-session -t popup && tmux select-pane -R -t ${session_name} && ${reset_cmd}' &&
+				tmux bind Down run-shell 'tmux kill-session -t popup && tmux select-pane -D -t ${session_name} && ${reset_cmd}' &&
+				tmux bind Up run-shell 'tmux kill-session -t popup && tmux select-pane -U -t ${session_name} && ${reset_cmd}' &&
+				tmux show-buffer | $0 strip | nvim + -R -n - ; ${reset_cmd} \""
+fi
