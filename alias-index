@@ -1,0 +1,52 @@
+#! /bin/sh
+# Usage
+# alias-index /the_directory_of_tmux_configuration_files (no *.conf)
+# $XDG_CONFIG_HOME/tmux/alias-index $XDG_CONFIG_HOME/tmux
+# List alias_index_xx
+
+# Prototype
+# grep -Hn "alias_index_[0-9]\+=[+-|0-9]\+" /mnt/init/terminal/tmux/*.conf
+
+path="${1:?"Files path must be given"}"
+
+type print > /dev/null 2>&1 ||
+alias print='printf "[%6.6d] %-$((${LENGTH_HEADER:-59} - 10))s '"'"'%s'"'"'\n" "$LINENO"'
+
+[ -d "$path" ] ||
+{
+	print 'Path does not exist' "$path"
+	exit 1
+}
+
+lines_init=4
+while IFS="$newline" read -r file_name; do
+	lines="$(wc -l "$file_name" | cut -f 1 -d ' ')"
+	lines_init="$((lines_init > lines? lines_init : lines))"
+done < <(grep -Hn "alias_index_[0-9]\+=[0-9]\+" "$path"/*.conf | awk -F : '{print $1}' | sort -u)
+! : ${WIDTH_LINES:=${#lines_init}} || export WIDTH_LINES
+
+while IFS="$newline" read -r line; do
+	line_num="$(printf '%s' "$line" | awk -F : '{print $2}')"
+	# print '$line_num' "$line_num"
+	line_content="$(printf '%s' "$line" | cut -f3- -d':')"
+	first_element="$(printf '%s' "$line_content" | awk '$1 = $1 {print $1}')"
+	case "$first_element" in \#*)
+		# print "$line_num" "$first_element"
+		print "-1" "$(printf "%${WIDTH_LINES}.${WIDTH_LINES}d" $line_num): $line_content"
+		continue
+	esac
+	# print "$line_num" "$line_content"
+	index_numb="$(printf '%s' "$line_content" | awk -F = '{print $2}')"
+	index_name="$(printf '%s' "$line_content" | awk -F = '{print $1}' | awk '{print $NF}')"
+	name_index="${index_name:$((${#index_name} - 2)):2}"
+	[ "$name_index" -eq "$index_numb" ] &&
+		print "$index_numb" "$(printf "%${WIDTH_LINES}.${WIDTH_LINES}d" $line_num): $index_name" ||
+	{
+		# print "$index_numb" "$index_numb"
+		# %hidden alias_index_08=-8 # is illegal
+		# %hidden alias_index_08=+8 # is eligible
+		print "$index_numb" "\$name_index : \$index_numb <-> $name_index : $index_numb"
+		print "$index_numb" "got wrong match $index_name"
+	}
+done < <(grep -Hn "alias_index_[0-9]\+=[+-|0-9]\+" "$path"/*.conf) | sort -k 2 -n
+

@@ -8,20 +8,20 @@ alias print='printf "[%6.6d] %-$((${LENGTH_HEADER:-59} - 10))s '"'"'%s'"'"'\n" "
 
 [ -z "${ENV:+x}" ] || unset ENV
 [ -n "${prefix_background:+x}" ] ||
-    prefix_background="$(tmux showenv -gh prefix_background | awk -F = '{print $2}')"
+    prefix_background="$(\tmux showenv -gh prefix_background 2> /dev/null | awk -F = '{print $2}')"
 #   tmux display -p -d 0 "#[fill=white fg=white bg=black align=left][prefix-mode] [#{prefix_key} to enter prefix-mode] [#{prefix_key}-[ to enter copy-mode]"
 #   tmux display -p -d 0 "[prefix-mode] [#{prefix_key} to enter prefix-mode] [#{prefix_key}-[ to enter copy-mode]"
 : "${TABSTOP:=4}" && export TABSTOP
 indent=$((TABSTOP + 1))
 
 [ -n "${prefix_key:+x}" ] ||
-    prefix_key="$(tmux showenv -gh prefix_key | awk -F = '{print $2}')"
+    prefix_key="$(\tmux showenv -gh prefix_key 2> /dev/null | awk -F = '{print $2}')"
 [ -n "${normal_key:+x}" ] ||
-    normal_key="$(tmux showenv -gh normal_key | awk -F = '{print $2}')"
+    normal_key="$(\tmux showenv -gh normal_key 2> /dev/null | awk -F = '{print $2}')"
 [ -n "${escape_key:+x}" ] ||
-    escape_key="$(tmux showenv -gh escape_key | awk -F = '{print $2}')"
+    escape_key="$(\tmux showenv -gh escape_key 2> /dev/null | awk -F = '{print $2}')"
 [ -n "${assist_key:+x}" ] ||
-    assist_key="$(tmux showenv -gh assist_key | awk -F = '{print $2}')"
+    assist_key="$(\tmux showenv -gh assist_key 2> /dev/null | awk -F = '{print $2}')"
 
     tput cup "$(tput lines)"
 
@@ -31,6 +31,7 @@ indent=$((TABSTOP + 1))
 {
     printf "%b%-${indent}s%-28s%s%b\n" "\033[1;042m" "" "copy-mode   -- $escape_key-[" "toggle" "\033[0m" > "$TTY"
 #   print "$(printf "%b%s%b" "\033[1;042m" "copy-mode" "\033[0m")" "$(printf "%b%s%b" "\033[1;042m" "$escape_key-[ toggle" "\033[0m")"
+	[ -z "${assist_key:+x}" ] ||
     printf "%b%-${indent}s%-28s%s%b\n" "\033[1;042m" "" "copy-mode   -- $assist_key" "toggle on top of $escape_key" "\033[0m" > "$TTY"
 #   print "$(printf "%b%s%b" "\033[1;042m" "copy-mode" "\033[0m")" "$(printf "%b%s%b" "\033[1;042m" "\\$assist_key toggle on top of $escape_key" "\033[0m")"
 } ||
@@ -43,11 +44,23 @@ indent=$((TABSTOP + 1))
 
 #   printf '%b%s%b\n' "\033[1;044m" "['[' to enter copy-mode when inside prefix-mode and $prefix_key ot quit]" "\033[0m"
 #   printf '%b%s%b\n' "\033[1;044m" "[prefix-mode -- $prefix_key   (toggle) / Enter       (exit)]" "\033[0m"
-# /usr/bin/tmux switch-client -T prefix
-/usr/bin/tmux run -C "$(\tmux display -p '#{prefix_root}')"
+escape_on_root_event_exists() {
+	#   /usr/bin/tmux switch-client -T prefix
+	#   /usr/bin/tmux run -C "$(\tmux display -p '#{prefix_enter}')" #   #{prefix_enter} might be empty
+	local escape_on_root_key_exists=1
+	while read -r line; do
+		[ "$line" = "escape_on_root" ] || continue
+		escape_on_root_key_exists=0
+		break
+	done < <(\tmux show -g command-alias | awk -F = '{print $1}' | awk -F " " '{ print $2}' | tr -d \")
+	return $escape_on_root_key_exists
+}
+! escape_on_root_event_exists || /usr/bin/tmux run -C "escape_on_root"
 # TTY="$(tty)"
 rolling() {
     exec < /dev/tty
+	[ -z "${IS_KISS:+x}" ] &&
+        trap 'return 0' INT TERM QUIT PIPE EXIT ||
         trap 'return 0' INT TERM QUIT PIPE EXIT ERR
     while
         #   case "$(tmux display -p "#{client_prefix}")" in
@@ -55,7 +68,7 @@ rolling() {
         #       *)
         #           break
         #   esac
-        [ "$(tmux display -p "#{client_prefix}")" -eq 1 ] || return 0
+        [ "$(\tmux display -p "#{client_prefix}")" -eq 1 ] || return 0
     do
     #   Can not quit ?
     #   tmux bind -T prefix "$prefix_key" ' if-shell true {  switch-client -T root ; select-pane -P bg=terminal } '
@@ -64,7 +77,7 @@ rolling() {
         {
             printf "%b%-${indent}s%-28s%s%b\r" "\033[1;044m" "" "prefix-mode -- $escape_key" "toggle" "\033[0m" > "$TTY"
         } || {
-            [ "$normal_key" = "Escape" ] &&
+            [ "$normal_key" = "Escape" ] && [ -n "${assist_key:+x}" ] &&
             printf "%b%-${indent}s%-28s%s%b\r" "\033[1;044m" "" "prefix-mode -- $assist_key" "toggle on top of $escape_key" "\033[0m" > "$TTY" || :
         }
     #   /usr/bin/tmux select-pane -P "bg=$prefix_background"
@@ -74,7 +87,7 @@ rolling() {
         {
             printf "%b%-${indent}s%-28s%s%b\r" "\033[1;007m" "" "prefix-mode -- $escape_key" "toggle" "\033[0m" > "$TTY"
         } || {
-            [ "$normal_key" = "Escape" ] &&
+            [ "$normal_key" = "Escape" ] && [ -n "${assist_key:+x}" ] &&
             printf "%b%-${indent}s%-28s%s%b\r" "\033[1;007m" "" "prefix-mode -- $assist_key" "toggle on top of $escape_key" "\033[0m" > "$TTY" || :
         }
     #   /usr/bin/tmux select-pane -P bg=terminal
