@@ -21,6 +21,15 @@ alias print='printf "[%6.6d] %-$((${LENGTH_HEADER:-59} - 10))s '"'"'%s'"'"'\n" "
 	exit 1
 }
 
+is_integer() {
+	local char="${1-}"
+	case "${char#[+-]}" in
+		(*[!0123456789]*) return 1 ;;
+		('')              return 1 ;;
+		(*)               return 0 ;;
+	esac
+}
+
 backup() {
 	local file_name="$1"
 	local tmp_dir="/tmp/$(id -u)"
@@ -36,26 +45,51 @@ backuped=1
 while IFS="$newline" read -r line; do
 	line_num="$(printf '%s' "$line" | awk -F : '{print $2}')"
 	line_num_fomated="$(printf "%${WIDTH_LINES}.${WIDTH_LINES}d" "$line_num")"
+	line_num_fomated_bracketed="[$line_num_fomated]"
+	# print '$line_num_fomated_bracketed' "$line_num_fomated_bracketed"
 	# print '$line_num_fomated' "$line_num_fomated"
-	# https://www.unix.com/shell-programming-and-scripting/172036-replace-specific-field-specific-line-sed-awk.html
-	# line_num_record_with_square_brackets="$(printf '%s' "$line" | sed "/display/{s/.*\(\[[0-9]*]\).*/\1/g}" )"
-	line_num_record_with_square_brackets="$(printf '%s' "$line" | sed "s/.*\(\[[0-9]*]\).*/\1/g" )"
-	line_num_record="$(printf '%s' "$line" | awk -F \[ '{print $2}' | awk -F ] '{print $1}')"
-	# print '$line_num_record' "$line_num_record"
-	[ "$line_num_fomated" = "$line_num_record" ] ||
-	{
-		[ "$backuped" -eq 0 ] || { backup "$file_name"; backuped=0; }
-		# line_content="$(printf '%s' "$line" | awk -F     : '{print $3}')" # will lost $4 and later
-		# Works
-		# line_content="$(printf '%s' "$line" | awk -F     : '{ for (i = 3; i <= NF; i++) if(i == NF) { printf $i } else { printf $i " : " }; print "" }')"
-		# Works
-		line_content="$(printf '%s' "$line" | cut -f3- -d':')"
-		print "Line $line_num original" "${newline}$line_content"
-		line_new="$(printf '%s' "$line_content" | sed -e "s/\[$line_num_record\]/\[$line_num_fomated\]/g")"
-		print "Line $line_num should be" "${newline}$line_new"
-		# sed -i.backup "${line_num}s/$line_num_record/$line_num_fomated/" "$file_name"
-		sed -i -e "${line_num}s/$line_num_record/$line_num_fomated/" "$file_name"
-		print "Line $line_num result" "${newline}$(sed "${line_num}!d" "$file_name")"
 
-	}
-done < <(grep -Hn "[\"\\']#[[:blank:]]\+[[0-9]\+]" "$file_name")
+	line_content="$(printf '%s' "$line" | cut -f3- -d':')"
+	# print '$line_content' "$line_content"
+	# https://www.unix.com/shell-programming-and-scripting/172036-replace-specific-field-specific-line-sed-awk.html
+	# line_num_record_bracketed="$(printf '%s' "$line" | sed "/display/{s/.*\(\[[0-9]*]\).*/\1/g}" )"
+	# correct=0
+	rest="${line_content}"
+	# while [ ! -z "$rest" ]; do
+	# 	# Only the last bracketed number
+	# 	line_num_record_bracketed="$(printf '%s' "$rest" | sed "s/.*\(\[[0-9]\+\]\).*/\1/g" )"
+	# 	rest="${rest%${line_num_record_bracketed}*}"
+	# 	print "# $line_num_fomated_bracketed \$line_num_record_bracketed" "$line_num_record_bracketed"
+	# done
+	while [ ! -z "$rest" ]; do
+		# line_num_record="$(printf '%s' "$line_content" | awk -F \[ '{print $2}' | awk -F ] '{print $1}')"
+		# Will lost following candidates
+		# line_num_record_commented="#$(printf '%s' "$rest" | awk -F \# '{print $2}' | awk -F ] '{print $1}')]"
+		line_num_record_commented="#$(printf '%s' "$rest" | cut -f2- -d'#')"
+		printf '%s\n' "$line_num_record_commented" | grep -q "#[[:blank:]]\+\[[0-9]\+\]" || break
+		print "# $line_num_fomated_bracketed \$line_num_record_commente" "$line_num_record_commented"
+		line_num_record="$(printf '%s' "$line_num_record_commented" | awk -F \[ '{print $2}' | awk -F ] '{print $1}')"
+		[ ! -z "$line_num_record" ] || break
+		is_integer "$line_num_record" || break
+		rest="${line_num_record_commented#*\["${line_num_record}"\]}"
+		# print "# $line_num_fomated_bracketed [\$line_num_record]" "[$line_num_record]"
+		[ "$line_num_fomated" = "$line_num_record" ] || # correct=1
+		# [ "$correct" -eq 0 ] ||
+		{
+			[ "$backuped" -eq 0 ] || { backup "$file_name"; backuped=0; }
+			# line_content="$(printf '%s' "$line" | awk -F     : '{print $3}')" # will lost $4 and later
+			# Works
+			# line_content="$(printf '%s' "$line" | awk -F     : '{ for (i = 3; i <= NF; i++) if(i == NF) { printf $i } else { printf $i " : " }; print "" }')"
+			# Works
+			# line_content="$(printf '%s' "$line" | cut -f3- -d':')"
+			print "Line $line_num original" "${newline}$line_content"
+			line_new="$(printf '%s' "$line_content" | sed -e "s/\[$line_num_record\]/\[$line_num_fomated\]/g")"
+			print "Line $line_num should be" "${newline}$line_new"
+			# sed -i.backup "${line_num}s/$line_num_record/$line_num_fomated/" "$file_name"
+			sed -i -e "${line_num}s/$line_num_record/$line_num_fomated/" "$file_name"
+			print "Line $line_num result" "${newline}$(sed "${line_num}!d" "$file_name")"
+
+		}
+	done
+# done < <(grep -Hn "[\"\\']#[[:blank:]]\+\[[0-9]\+\]" "$file_name")
+done < <(grep -Hn "#[[:blank:]]\+\[[0-9]\+\]" "$file_name")
