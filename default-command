@@ -22,14 +22,18 @@ indent=$((TABSTOP + 1))
     escape_key="$(\tmux showenv -gh escape_key 2> /dev/null | awk -F = '{print $2}')"
 [ -n "${assist_key:+x}" ] ||
     assist_key="$(\tmux showenv -gh assist_key 2> /dev/null | awk -F = '{print $2}')"
+[ -n "${one_stage_policy:+x}" ] ||
+    one_stage_policy="$(\tmux showenv -gh one_stage_policy 2> /dev/null | awk -F = '{print $2}')"
+[ -n "${is_reloading:+x}" ] ||
+    is_reloading="$(\tmux showenv -gh is_reloading 2> /dev/null | awk -F = '{print $2}')"
 
     tput cup "$(tput lines)"
 
-    printf "%b%-${indent}s%-28s%s%b\n" "\033[1;042m" "" "copy-mode   -- C-X" "toggle" "\033[0m" > "$TTY"
+    printf "%b%-${indent}s%-28s%s%b\n" "\033[1;042m" "" "copy-mode   -- C-x" "toggle" "\033[0m" > "$TTY"
 #   prefix_key="$(tmux display -p "#{prefix_key}")"
 [ "$prefix_key" = "Escape" ] &&
 {
-    printf "%b%-${indent}s%-28s%s%b\n" "\033[1;042m" "" "copy-mode   -- $escape_key-[" "toggle" "\033[0m" > "$TTY"
+    printf "%b%-${indent}s%-28s%s%b\n" "\033[1;042m" "" "copy-mode   -- $escape_key-[/[" "enter/quit" "\033[0m" > "$TTY"
 #   print "$(printf "%b%s%b" "\033[1;042m" "copy-mode" "\033[0m")" "$(printf "%b%s%b" "\033[1;042m" "$escape_key-[ toggle" "\033[0m")"
 	[ -z "${assist_key:+x}" ] ||
     printf "%b%-${indent}s%-28s%s%b\n" "\033[1;042m" "" "copy-mode   -- $assist_key" "toggle on top of $escape_key" "\033[0m" > "$TTY"
@@ -55,7 +59,7 @@ escape_on_root_event_exists() {
 	done < <(\tmux show -g command-alias | awk -F = '{print $1}' | awk -F " " '{ print $2}' | tr -d \")
 	return $escape_on_root_key_exists
 }
-! escape_on_root_event_exists || /usr/bin/tmux run -C "escape_on_root"
+
 # TTY="$(tty)"
 rolling() {
     exec < /dev/tty
@@ -75,7 +79,7 @@ rolling() {
         sleep 0.75
         [ "$prefix_key" = "Escape" ] &&
         {
-            printf "%b%-${indent}s%-28s%s%b\r" "\033[1;044m" "" "prefix-mode -- $escape_key" "toggle" "\033[0m" > "$TTY"
+            printf "%b%-${indent}s%-28s%s%b\r" "\033[1;044m" "" "prefix-mode -- $escape_key" "$([ "$one_stage_policy" -eq 1 ] && printf '%s' "toggle" || printf '%s' "prefix/copy")" "\033[0m" > "$TTY"
         } || {
             [ "$normal_key" = "Escape" ] && [ -n "${assist_key:+x}" ] &&
             printf "%b%-${indent}s%-28s%s%b\r" "\033[1;044m" "" "prefix-mode -- $assist_key" "toggle on top of $escape_key" "\033[0m" > "$TTY" || :
@@ -85,7 +89,7 @@ rolling() {
         sleep 0.75
         [ "$prefix_key" = "Escape" ] &&
         {
-            printf "%b%-${indent}s%-28s%s%b\r" "\033[1;007m" "" "prefix-mode -- $escape_key" "toggle" "\033[0m" > "$TTY"
+            printf "%b%-${indent}s%-28s%s%b\r" "\033[1;007m" "" "prefix-mode -- $escape_key" "$([ "$one_stage_policy" -eq 1 ] && printf '%s' "toggle" || printf '%s' "prefix/copy")" "\033[0m" > "$TTY"
         } || {
             [ "$normal_key" = "Escape" ] && [ -n "${assist_key:+x}" ] &&
             printf "%b%-${indent}s%-28s%s%b\r" "\033[1;007m" "" "prefix-mode -- $assist_key" "toggle on top of $escape_key" "\033[0m" > "$TTY" || :
@@ -95,8 +99,14 @@ rolling() {
     done
 }
 
-(rolling & :)
+! escape_on_root_event_exists ||
+[ "$is_reloading" -eq 1 ] ||
+{
+	/usr/bin/tmux run -C "escape_on_root"
+
+	(rolling & :)
 #   rolling
+}
 
 #   \tmux send-prefix
 #   /usr/bin/tmux send-keys Escape
