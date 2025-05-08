@@ -7,6 +7,11 @@ type print > /dev/null 2>&1 ||
 # Ruin the line numbers?
 # alias print=$'printf "[%6.6d] %-$((${LENGTH_HEADER:-59} - 10))s \'%s\'\n" "$LINENO"'
 alias print='printf "[%6.6d] %-$((${LENGTH_HEADER:-59} - 10))s '"'"'%s'"'"'\n" "$LINENO"'
+[ ! -z "${TMUX:+x}" ] ||
+{
+	print 'failed to source file for' 'not in a tmux session'
+	return 1
+}
 
 [ -z "${ENV:+x}" ] || unset ENV
 [ -n "${prefix_background:+x}" ] ||
@@ -18,7 +23,7 @@ export INDENT=$((TABSTOP + 1))
 
 env_export() {
 	eval "[ -n \"\${$1:+x}\" ]" ||
-		eval "export \$1=\$(/usr/bin/tmux showenv -gh $1 2> /dev/null | awk -F = '{print \$2}')" || :
+	eval "export \$1=\$(/usr/bin/tmux showenv -gh $1 2> /dev/null | awk -F = '{print \$2}')" || :
 }
 
 env_export prefix_key
@@ -66,23 +71,23 @@ env_export TERM_PROGRAM
 
 ! : "${TERM:="tmux-256color"}" || export TERM
 export tput_lines_original="$(tput lines)"
-export align_right_width=79
-export cols_original="$(expr `tput cols` - $align_right_width)"
+export   align_right_width=79
+export       cols_original="$(expr `tput cols` - $align_right_width)"
 #   print '$cols_original' "$cols_original" > "$TTY"
-tput cup "$tput_lines_original"
-#   tput cup "$(($(tput lines) - 4))"
+#   tput cup "$tput_lines_original"
+    tput cup "$(($(tput lines) - 4))"
 #   type format
 tip_format() {
-	local     indent_cols="${1:-0}"
-	local      color_left="${11-\033[1;044m}"
-	local   color_arrow_1="${12-$color_left}"
-	local  color_key_left="${13-$color_left}"
-	local   color_arrow_2="${14-$color_left}"
-	local    color_middle="${15-$color_left}"
-	local   color_arrow_3="${16-$color_left}"
-	local color_key_right="${17-$color_left}"
-	local   color_arrow_4="${18-$color_left}"
-	local     color_right="${19-$color_left}"
+	local     indent_cols="${1:-0}" &&
+	local      color_left="${11-\033[1;044m}" &&
+	local   color_arrow_1="${12-$color_left}" &&
+	local  color_key_left="${13-$color_left}" &&
+	local   color_arrow_2="${14-$color_left}" &&
+	local    color_middle="${15-$color_left}" &&
+	local   color_arrow_3="${16-$color_left}" &&
+	local color_key_right="${17-$color_left}" &&
+	local   color_arrow_4="${18-$color_left}" &&
+	local     color_right="${19-$color_left}" &&
 	local        length_8=0
 	[ -z "${8:+x}" ] || length_8="${#8}"
 	[ -z "${4:+x}" ] ||
@@ -101,46 +106,50 @@ tip_format() {
 		"\033[0m$color_arrow_3" "${7-}" "\033[0m$color_key_right" \
 		"$(printf "%s%b%-$((8 - length_8))s" "${8-}" "\033[0m$color_right" "")" \
 		"\033[0m$color_arrow_4" "${9-}" "\033[0m$color_right" "${10-}" "\033[0m" > "$TTY"
+	return 0
 }
 
-[ "$one_stage_policy" = "0" ] &&
-#   printf "%b%-${INDENT}s%-14s%-14s%-14s%-14s%-14s%b\n" "\033[1;044m" "" "prefix-mode"  " <- $prefix_key -- " "copy-mode" " <- C-x -> " "root-mode" "\033[0m" > "$TTY"
-tip_format "" "prefix-mode" " <- " "$prefix_key" " -- " "copy-mode" " <- " "$toggle_key" " -> " "root-mode" ||
-{
-	tip_format "" "prefix-mode" " <- " "$escape_key" " -> " "root-mode" "" "" "" "" "\033[1;046m"
-	tip_format "" "copy-mode"   " <- " "$toggle_key" " -> " "root-mode" "" "" "" "" "\033[1;046m"
-	tip_format "" "copy-mode"   " <- " "$toggle_key" " -- " "prefix-mode"
-	tip_format "" "root-mode"   " <- " "$escape_key" " -- " "copy-mode"
-}
-
-#   prefix_key="$(tmux display -p "#{prefix_key}")"
-[ "$prefix_key" = "Escape" ] &&
-{
-	[ "$one_stage_policy" = "1" ] ||
-	#   printf "%b%-${INDENT}s%-14s%-14s%-14s%-14s%-14s%b\n" "\033[1;044m" "" "copy-mode" " <- $prefix_key -- " "prefix-mode"  " <- $prefix_key -- " "root-mode" "\033[0m" > "$TTY"
-	tip_format "" "copy-mode" " <- " "$prefix_key" " -- " "prefix-mode" " <- " "$prefix_key" " -- " "root-mode" "\033[1;046m"
-	#   print "$(printf "%b%s%b" "\033[1;044m" "copy-mode" "\033[0m")" "$(printf "%b%s%b" "\033[1;044m" "$escape_key-[ toggle" "\033[0m")"
-	[ -z "${assist_key:+x}" ] ||
-	[ "$assist_key" = "$toggle_key" ] ||
+tips() {
+	[ "$one_stage_policy" = "0" ] &&
+	#   printf "%b%-${INDENT}s%-14s%-14s%-14s%-14s%-14s%b\n" "\033[1;044m" "" "prefix-mode"  " <- $prefix_key -- " "copy-mode" " <- C-x -> " "root-mode" "\033[0m" > "$TTY"
+	tip_format "" "prefix-mode" " <- " "$prefix_key" " -- " "copy-mode" " <- " "$toggle_key" " -> " "root-mode" ||
 	{
-		#   printf "%b%-${INDENT}s%-14s%-14s%-14s%-14s%-14s%b\n" "\033[1;044m" "" "copy-mode" " <- $(format $assist_key ) -> " "root-mode" "on top of" "$escape_key" "\033[0m" > "$TTY"
-		tip_format "" "copy-mode" " <- " "$assist_key" " -> " "root-mode" "    " "toggle" " in " " n/vim " "\033[1;046m"
-		tip_format "" "root-mode" " <- " "$assist_key" " -- " "copy-mode" " <- " "$assist_key" " -- " "prefix-mode"
-		#   print "$(printf "%b%s%b" "\033[1;044m" "copy-mode" "\033[0m")" "$(printf "%b%s%b" "\033[1;044m" "\\$assist_key toggle on top of $escape_key" "\033[0m")"
+		tip_format "" "prefix-mode" " <- " "$escape_key" " -> " "root-mode" "" "" "" "" "\033[1;046m"
+		tip_format "" "copy-mode"   " <- " "$toggle_key" " -> " "root-mode" "" "" "" "" "\033[1;046m"
+		tip_format "" "copy-mode"   " <- " "$toggle_key" " -- " "prefix-mode"
+		tip_format "" "root-mode"   " <- " "$escape_key" " -- " "copy-mode"
 	}
-} ||
-{
-	[ "$normal_key" = "Escape" ] &&
-	printf "%b%-${INDENT}s%-28s%s%b\n" "\033[1;044m" "" "copy-mode   -- $escape_key" " -- root-mode toggle" "\033[0m" > "$TTY" || :
-}
-	#   printf "%b%-${INDENT}s%-14s%-14s%-14s%-14s%-14s%b\r" "\033[1;044m" "" "root-mode" " <- [   -- " "copy-mode" " <- [   -- " "prefix-mode" "\033[0m" > "$TTY"
-	tip_format "" "root-mode" " <- " "[" " -- " "copy-mode" " <- " "[" " -- " "prefix-mode"
-	printf '\n'
-#   copy_tip="$(printf "%b%-${INDENT}s%s%b\n" "\033[1;044m" "" "copy-mode   -- $prefix_key-[ (enter) | $prefix_key (quit)" "\033[0m")"
-#   tmux display -p "copy-mode   -- $prefix_key-[ (enter) | $prefix_key (quit)"
 
-#   printf '%b%s%b\n' "\033[1;042m" "['[' to enter copy-mode when inside prefix-mode and $prefix_key ot quit]" "\033[0m"
-#   printf '%b%s%b\n' "\033[1;042m" "[prefix-mode -- $prefix_key   (toggle) / Enter       (exit)]" "\033[0m"
+	#   prefix_key="$(tmux display -p "#{prefix_key}")"
+	[ "$prefix_key" = "Escape" ] &&
+	{
+		[ "$one_stage_policy" = "1" ] ||
+		#   printf "%b%-${INDENT}s%-14s%-14s%-14s%-14s%-14s%b\n" "\033[1;044m" "" "copy-mode" " <- $prefix_key -- " "prefix-mode"  " <- $prefix_key -- " "root-mode" "\033[0m" > "$TTY"
+		tip_format "" "copy-mode" " <- " "$prefix_key" " -- " "prefix-mode" " <- " "$prefix_key" " -- " "root-mode" "\033[1;046m"
+		#   print "$(printf "%b%s%b" "\033[1;044m" "copy-mode" "\033[0m")" "$(printf "%b%s%b" "\033[1;044m" "$escape_key-[ toggle" "\033[0m")"
+		[ -z "${assist_key:+x}" ] ||
+		[ "$assist_key" = "$toggle_key" ] ||
+		{
+			#   printf "%b%-${INDENT}s%-14s%-14s%-14s%-14s%-14s%b\n" "\033[1;044m" "" "copy-mode" " <- $(format $assist_key ) -> " "root-mode" "on top of" "$escape_key" "\033[0m" > "$TTY"
+			tip_format "" "copy-mode" " <- " "$assist_key" " -> " "root-mode" "    " "toggle" " in " " n/vim " "\033[1;046m"
+			tip_format "" "root-mode" " <- " "$assist_key" " -- " "copy-mode" " <- " "$assist_key" " -- " "prefix-mode"
+			#   print "$(printf "%b%s%b" "\033[1;044m" "copy-mode" "\033[0m")" "$(printf "%b%s%b" "\033[1;044m" "\\$assist_key toggle on top of $escape_key" "\033[0m")"
+		}
+	} ||
+	{
+		[ "$normal_key" = "Escape" ] &&
+		printf "%b%-${INDENT}s%-28s%s%b\n" "\033[1;044m" "" "copy-mode   -- $escape_key" " -- root-mode toggle" "\033[0m" > "$TTY" || :
+	}
+		#   printf "%b%-${INDENT}s%-14s%-14s%-14s%-14s%-14s%b\r" "\033[1;044m" "" "root-mode" " <- [   -- " "copy-mode" " <- [   -- " "prefix-mode" "\033[0m" > "$TTY"
+		tip_format "" "root-mode" " <- " "[" " -- " "copy-mode" " <- " "[" " -- " "prefix-mode"
+		printf '\n'
+	#   copy_tip="$(printf "%b%-${INDENT}s%s%b\n" "\033[1;044m" "" "copy-mode   -- $prefix_key-[ (enter) | $prefix_key (quit)" "\033[0m")"
+	#   tmux display -p "copy-mode   -- $prefix_key-[ (enter) | $prefix_key (quit)"
+
+	#   printf '%b%s%b\n' "\033[1;042m" "['[' to enter copy-mode when inside prefix-mode and $prefix_key ot quit]" "\033[0m"
+	#   printf '%b%s%b\n' "\033[1;042m" "[prefix-mode -- $prefix_key   (toggle) / Enter       (exit)]" "\033[0m"
+}
+
 escape_on_root_event_exists() {
 	#   /usr/bin/tmux switch-client -T prefix
 	#   /usr/bin/tmux run -C "$(/usr/bin/tmux display -p '#{prefix_enter}')" #   #{prefix_enter} might be empty
@@ -152,8 +161,10 @@ escape_on_root_event_exists() {
 	done < <(/usr/bin/tmux show -g command-alias | awk -F = '{print $1}' | awk -F " " '{ print $2}' | tr -d \")
 	return $escape_on_root_key_exists
 }
-
-static_lines="$(($(tput lines) - 4))"
+#   This design won't work when command line has a long content more than 4 lines
+#   Fixed by PS1 ending with \n
+    static_lines="$(($(tput lines) - 4))"
+#   static_lines="$(tput lines)"
 
 # TTY="$(tty)"
 _rolling() {
@@ -180,7 +191,8 @@ _rolling() {
 		#   tput cup "$tput_lines"
 		#   tput_lines_original="$tput_lines"
 		# }
-		tput_lines="$(($(tput lines) - 4))"
+		    tput_lines="$(($(tput lines) - 4))" # should use the real lines of the content
+		#   tput_lines="$(tput lines)"
 		[ "$static_lines" -eq "$tput_lines" ] ||
 		{
 			tput cup "$tput_lines"

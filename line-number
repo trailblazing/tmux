@@ -2,6 +2,8 @@
 # Usage
 # line-number file_name
 # $XDG_CONFIG_HOME/tmux/line-number $XDG_CONFIG_HOME/tmux/prefix.conf
+# $XDG_CONFIG_HOME/tmux/line-number $XDG_CONFIG_HOME/tmux/header.conf
+# $XDG_CONFIG_HOME/tmux/line-number $XDG_CONFIG_HOME/tmux/tmux.conf
 # Match strings '# [0000] or "# [0000] or '#   [0000] or "#   [0000]
 
 file_name="${1:?"File name must be given"}"

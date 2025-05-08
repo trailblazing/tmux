@@ -3,7 +3,7 @@
 #   tty: Specify tty to check for vim process.
 set -x
 tty="$1"
-alias /='eval'
+alias /='command eval'
 list_length() {
 	local index=0
 	local item=
