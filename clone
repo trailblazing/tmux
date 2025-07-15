@@ -8,6 +8,7 @@
 # # shellcheck source=/usr/include/kiss/init
 # type "env_reset" > /dev/null 2>&1 && [ ! -z "${INIT+x}" ] ||
 # 	. "${MNGR_ROOT-}/usr/include/kiss/init"
+alias _='command eval'
 index=-1
 while IFS="$newline" read -r line
 do
@@ -18,7 +19,7 @@ do
 	key_escape="$key"
 	case "$key" in
 		*\\*)
-			key_escape="$(/ "sed \"s|\\|\\\\\\|g\" << EOF${newline}\$key${newline}EOF")" ||
+			key_escape="$(_ "sed \"s|\\|\\\\\\|g\" << EOF${newline}\$key${newline}EOF")" ||
 				tmux display -p "[$index] sed failed at '$key' -> '$key_escape'"
 			[ -n "${key_escape:+x}" ] ||
 			tmux display -p "[$index] sed failed at '$key' -> '$key_escape'"
