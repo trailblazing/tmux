@@ -1,70 +1,228 @@
 #! /bin/sh
-# Usage: is_vim.sh <tty>
-#   tty: Specify tty to check for vim process.
-set -x
-tty="$1"
-alias /='command eval'
-list_length() {
-	local index=0
-	local item=
-	for item do
-		: $((index += 1))
-	done
-	printf "%s" $index
-}
-# Construct process tree.
-# children=
-# busybox does not support -t
-# pids="$(ps -o pid= -t "$tty")"
-pids="$(ps -o pid=)"
 
-pid_list=
-for pid in $pids; do
-	pid_list="${pid_list:+"${pid_list}|"}$pid"
-done
-children_build() {
-	local children_name=
-	while read -r pid ppid
-	do
-		[ ! -z "$pid" ] && [ "$pid" -ne "$ppid" ] &&
-		{
-			/ "children_name=\"children_$ppid\""
-			# / "children_$ppid=\"$pid\""
-			/ "children_name=\"${children_name:+\"${children_name}|\"}$pid\""
-		} || continue
-	done < <(ps -Ao pid=,ppid=)
+#   BusyBox does not support "ps -t"                                                                 ^
+#   1. Install procps and disable busybox's ps with CONFIG_PS=n                                      ^
+#   2. Or use the current is-vim script                                                              ^
+#   3. Or use: if -F '#{m:*vim*,#{pane_current_command}}'                                            ^
+#                                                                                                    ^
+#   Tests in n?vim                                                                                   ^
+#   :echo system("tmux display -p '#{pane_current_command}'")                                        ^
+#   :echo system("tmux if -F '#{m:*vim*,#{pane_current_command}}' 'display -p yes' 'display -p no'") ^
+#   Tests in terminal                                                                                ^
+#   tmux show-env -gs 'is_vim'                                                                       ^
+
+#   set -x
+#   Usage: is-vim <tty>   #   deprecated
+#   tty="$1"   #   tty: specify pane tty to check for vim process.
+
+#   Usage: is-vim '#{pane_pid}'
+#   pid="$1"   #   pid: specify pane pid to check for vim process.
+#   Tests in n?vim                                                                                   ^
+#   :! _DEBUG= $PROFILE/terminal/tmux/is-vim "$(tmux display -p '\#{pane_pid}')" && echo 0 || echo 1 ^
+#   Tests in terminal                                                                                ^
+#   _DEBUG= $PROFILE/terminal/tmux/is-vim "$(tmux display -p '#{pane_pid}')" && echo 0 || echo 1     ^
+
+#   Usage: is-vim '#{pane_current_command}'
+#   pane_current_command="$1"
+#   Tests in n?vim                                                                                               ^
+#   :! _DEBUG= $PROFILE/terminal/tmux/is-vim "$(tmux display -p '\#{pane_current_command}')" && echo 0 || echo 1 ^
+#   Tests in terminal                                                                                            ^
+#   _DEBUG= $PROFILE/terminal/tmux/is-vim "$(tmux display -p '#{pane_current_command}')" && echo 0 || echo 1     ^
+#   tmux show-env -gs 'is_vim'                                                                                   ^
+#   > is_vim="/mnt/init/terminal/tmux/is-vim '#{pane_current_command}'"; export is_vim;                          ^
+
+[ -z "${_DEBUG+x}" ] || command tmux display -p "\$1: ${1-}"   #   "$(print '$1' "${1-}")"
+#   printf '%s\n' "$1" | grep -iqE '(\\S+\\/)?g?(view|n?vim?x?)(diff)?$'
+#   printf '%s\n' "$1" | grep -iqE '(\\S\\+/)?g?(view|n?vim?x?)(diff)?$'
+printf '%s\n' "${1:-$(command tmux display -p -t "$TMUX_PANE" '#{pane_current_command}')}" | grep -iqE '(\\S.*/)?g?(view|n?vim?x?)(\-huge|diff)?$'
+#   exit $?
+status=$?
+tmux_socket="$(printf "$TMUX" | awk -F ',' '{print $1}')"
+tmux="$(command -v tmux)"
+is_vim="$($tmux -S "$tmux_socket" show-options -pqv "@is-vim")"
+[ "$status" -eq 0 ] &&
+{
+	[ "$is_vim" = "on" ] ||
+	$tmux -S "$tmux_socket" set-option -p    -t "$TMUX_PANE" "@is-vim" on
+} ||
+	[ -z "$is_vim" ] ||
+	$tmux -S "$tmux_socket" set-option -p -u -t "$TMUX_PANE" "@is-vim"
+exit $status
+
+#   All the following is deprecated
+
+#   alias _='command eval'
+[ -z "${_DEBUG+x}" ] ||
+{
+	alias print > /dev/null 2>&1 ||
+	alias print='printf "[%6.6d] %-$((${LENGTH_HEADER:-60} - 10))s '"'"'%s'"'"'\n" "$LINENO"'
+
+	#   [ ! -z "${TTY:+x}" ] && [ -c "$TTY" ] || TTY="$(tty)" || TTY=/dev/null
+
+	#   print '$pid' "$pid" > /dev/stderr #   print: not found
 }
-children_build
-# Get all descendant pids of processes in $tty with BFS
-query_relative() {
-	local pid index=0
-	local ifs="$IFS"
-	local children_name=
-	local IFS=$'|'
-	for pid in $pid_list
-	# while [ "$(list_length pids)" -gt "$index" ]
-	do
-		[ "$(IFS=$'|' list_length $pid_list)" -gt "$index" ] || break
-		# pid=${pids[index++]}
-		: $((index += 1))
-		printf '%s %s\n' '$pid' "$pid" > "$TTY"
-		/ "children_name=\"children_$pid\""
-		/ "[ ! -z \"\${children_name+x}\" ]" || continue
-		# / "child_value=\"\$${children_$pid-}\""
-		/ "child_value=\"\$${children_name-}\""
-		printf '%s %s\n' '$child_value' "$child_value" > "$TTY"
-		# / "pid_list=\"${pid_list:+\"${pid_list}|\"}\$${children_$pid-}\""
-		/ "pid_list=\"${pid_list:+\"${pid_list}|\"}$child_value\""
-	done
-}
-query_relative
-# Check whether any child pid_list are vim
-# state -> stat, -p -> ''
-# ps -o state=,comm= -p "$pid_list" | grep -iqE '^[^TXZ ]+ +(\\S+\\/)?g?(view|n?vim?x?)(diff)?$'
-ps -o pid=,stat=,comm= | egrep "^(PID| *$pid_list )" | awk '{print $(NF - 1) " " $NF}' | grep -iqE '^[^TXZ ]+ +(\\S+\\/)?g?(view|n?vim?x?)(diff)?$'
-set +x
-exit $?
-# [ is_vim does not detect vim running in a subshell #295 ](https://github.com/christoomey/vim-tmux-navigator/issues/295)
+
+[ -z "${_DEBUG+x}" ] || command tmux display -p "$(print '$pid' "$pid")"   #   print '$pid' "$pid" > $TTY   #   /dev/stderr   #   can't create /dev/stderr: No such device or address
+
+#   list_length() {
+#   	local index=0
+#   	local item=
+#   	for item do
+#   		: $((index += 1))
+#   	done
+#   	printf "%s" $index
+#   }
+
+#   length() { ! set -- 0 || ! until ! read; do set -- $(($1 + 1)); done || printf '%d' "$1"; }
+
+#   contains() {
+#   	local key="$1"
+#   	shift 1
+#   	local result=1 __it=
+#   	for __it do
+#   		[ "$key" = "$__it" ] || continue
+#   		result=0
+#   		break
+#   	done
+#   	return $result
+#   }
+
+#   Construct process tree.
+#   children=
+#
+
+#   pids="$(ps -o pid=)" #   pids="$(ps -o pid= -t "$tty")" #   BusyBox does not support "ps -t"
+
+#   for pid in $pids; do
+#   	_pid_list="${_pid_list:+"${_pid_list}|"}$pid" #   tr '\n' '|' will generate an extra "|" at the end of _pid_list
+#   done
+
+
+#   tree_list="$(pstree -p "${pid:-$$}" | sed 's/(/\n(/g' | grep '(' | sed 's/(\(.*\)).*/\1/')"
+#   tree_list="$(pstree -p "${pid:-$(tmux display -p '#{pane_pid}')}" | sed 's/(/\n(/g' | grep '(' | sed 's/(\(.*\)).*/\1/')"
+#   _pid_list="$(ps -o pid= | tr -d ' ' | tr '\n' '|')"
+#   command -v pstree > /dev/null 2>&1 && #   <when run the script directly in terminal>, pstree will get truncated by window size (got (2+ something)
+#   {
+#   	command -v expr > /dev/null 2>&1 &&
+#   	substr() { expr substr "$@"; } ||
+#   	{
+#   		is_integer() {
+#   			#   set -u needs this
+#   			local char="${1-}" &&
+#   			case "${char#[+-]}" in
+#   				(*[!0123456789]*) return 1 ;;
+#   				('')              return 1 ;;
+#   				(*)               return 0 ;;
+#   			esac
+#   		}
+#   		substr() {
+#   			[ -z "${1:+x}" ]  ||
+#   			! is_integer "$2" ||
+#   			! is_integer "$3" ||
+#   			awk -- "BEGIN { print substr (ARGV[1], $2, $3) }" "$1"
+#   		}
+#   	}
+#   	_pid_list="$(pstree -p "${pid:-$(tmux display -p '#{pane_pid}')}" | sed 's/(/\n(/g' | grep '(' | sed 's/(\(.*\)).*/\1/' | tr "\n" "|")"
+#   	[ "$(substr $_pid_list "${#_pid_list}" 1)" != "|" ] || _pid_list="$(substr $_pid_list 1 $((${#_pid_list} - 1)))"
+#   } ||
+#   {
+    _pid_list="${pid:-$(tmux display -p '#{pane_pid}')}"
+    traverse() {
+    	local pid="$1" __it
+    	set -- $(pgrep -P "$pid" 2>/dev/null) || :
+		for __it do
+			_pid_list="${_pid_list:+"${_pid_list}|"}$__it"
+			traverse "$__it"
+		done
+    }
+
+    traverse "$_pid_list"
+#   }
+
+#   in_tree() {
+#   	while IFS= read -r line; do
+#   		pid="$(printf '%s\n' "$line" | awk '{print $1}' | tr -d ' ')"
+#   		contains "$pid" $tree_list || continue
+#   		printf '%s\n' "$line"
+#   		break
+#   	done
+#   }
+#
+#   children_build() {
+#   	local children_name=
+#   	while read -r pid ppid
+#   	do
+#   		[ ! -z "$pid" ] && [ "$pid" -ne "$ppid" ] &&
+#   		{
+#   			eval "children_name=\"children_$ppid\""
+#   			eval "children_$ppid=\"$pid\""
+#   			#   eval "children_name=\"${children_name:+\"${children_name}|\"}$pid\""
+#   		} || continue
+#   	done < <(ps -eo pid=,ppid=)
+#   }
+#
+#   children_build
+#
+#   relative_list=
+#
+#   #   Get all descendant pids of processes in $tty with BFS
+#   query_relative() {
+#   	local pid index=0
+#   	local ifs="$IFS"
+#   	local children_name=
+#   	local IFS='|'
+#   	for pid in $_pid_list
+#   	#   while [ "$(list_length pids)" -gt "$index" ]
+#   	do
+#   		#   [ "$(IFS='|' _ 'printf "%s\n" $_pid_list' | length)" -gt "$index" ] || break
+#   		#   pid=${pids[index++]}
+#   		: $((index += 1))
+#   		#   [ -z "${_DEBUG+x}" ] || print '$pid' "$pid" > "$$TTY"
+#   		eval "children_name=\"children_$pid\""
+#   		eval "[ ! -z \"\$${children_name+x}\" ]" || continue
+#   		#   eval "child_value=\"\$${children_$pid-}\""
+#   		eval "child_value=\"\$${children_name-}\""
+#   		[ ! -z "${child_value:+x}" ] || continue
+#   		[ -z "${_DEBUG+x}" ] || print '$child_value' "$child_value" > "$$TTY"
+#   		#   eval "_pid_list=\"${_pid_list:+\"${_pid_list}|\"}\$${children_$pid-}\""
+#   		#   eval "_pid_list=\"${_pid_list:+\"${_pid_list}|\"}$child_value\""
+#   		eval "relative_list=\"${relative_list:+\"${relative_list}|\"}$child_value\""
+#   	done
+#   	IFS="$ifs"
+#   }
+#   [ -z "${_DEBUG+x}" ] || print '$relative_list length' "$(IFS='|' _ 'printf "%s\n" $relative_list' | length)" > /dev/stderr
+#   [ -z "${_DEBUG+x}" ] || print '$relative_list' "$relative_list" > /dev/stderr
+#   query_relative
+
+#   [ -z "${_DEBUG+x}" ] || print '$_pid_list length' "$(IFS='|' _ 'printf "%s\n" $_pid_list' | length)" > /dev/stderr
+[ -z "${_DEBUG+x}" ] || command tmux display -p "$(print '$_pid_list' "$_pid_list")"   #   print '$_pid_list' "$_pid_list" > $TTY   #   /dev/stderr
+
+
+#   state -> stat, -p -> ''
+#   ps -o state=,comm= -p "$_pid_list" | grep -iqE '^[^TXZ ]+ +(\\S+\\/)?g?(view|n?vim?x?)(diff)?$' #   check whether any child _pid_list are vim
+    ps -o pid=,stat=,comm= | egrep "^(PID| *$_pid_list )" | awk '{print $(NF - 1) " " $NF}' | grep -iqE '^[^TXZ ]+ +(\\S+\\/)?g?(view|n?vim?x?)(diff)?$'
+#   Works
+#   ps -o pid=,stat=,comm= | grep -E "$_pid_list" | awk '{print $(NF - 1) " " $NF}' | grep -iqE '^[^TXZ ]+ +(\\S+\\/)?g?(view|n?vim?x?)(diff)?$'
+
+#   ps -o pid=,stat=,comm= | egrep "^(PID| *$relative_list )" | awk '{print $(NF - 1) " " $NF}' | grep -iqE '^[^TXZ ]+ +(\\S+\\/)?g?(view|n?vim?x?)(diff)?$'
+#   ps -o pid=,stat=,comm= | in_tree | awk '{print $(NF - 1) " " $NF}' | grep -iE '^[^TXZ ]+ +(\\S+\\/)?g?(view|n?vim?x?)(diff)?$' > /dev/null 2>&1
+#   set +x
+status=$?
+[ -z "${_DEBUG+x}" ] || command tmux display -p "$(print '$status' "$status")"   #   print '$status' "$status" > $TTY   #   /dev/stderr
+tmux_socket="$(printf "$TMUX" | awk -F ',' '{print $1}')"
+[ -z "${_DEBUG+x}" ] || command tmux display -p "$(print '$tmux_socket' "$tmux_socket")"   #   print '$tmux_socket' "$tmux_socket" > $TTY   #   /dev/stderr
+tmux="$(command -v tmux)"
+is_vim="$($tmux -S "$tmux_socket" show-options -pqv "@is-vim")"
+[ "$status" -eq 0 ] &&
+{
+	[ "$is_vim" = "on" ] ||
+	$tmux -S "$tmux_socket" set-option -p    -t "$TMUX_PANE" "@is-vim" on
+} ||
+	[ -z "$is_vim" ] ||
+	$tmux -S "$tmux_socket" set-option -p -u -t "$TMUX_PANE" "@is-vim"
+exit $status
+#   exit $?
+#   [ is_vim does not detect vim running in a subshell #295 ](https://github.com/christoomey/vim-tmux-navigator/issues/295)
 
 
 
