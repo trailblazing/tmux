@@ -1,11 +1,11 @@
 #! /bin/sh -i
-# set -x
+#   set -x
 
-case "$(type -s tmux 2> /dev/null)" in *alias*) unalias tmux; esac
+case "$(type tmux 2> /dev/null)" in *alias*) unalias tmux; esac
 
 type print > /dev/null 2>&1 ||
-# Ruin the line numbers?
-# alias print=$'printf "[%6.6d] %-$((${LENGTH_HEADER:-59} - 10))s \'%s\'\n" "$LINENO"'
+#   Ruin the line numbers?
+#   alias print=$'printf "[%6.6d] %-$((${LENGTH_HEADER:-59} - 10))s \'%s\'\n" "$LINENO"'
 alias print='printf "[%6.6d] %-$((${LENGTH_HEADER:-59} - 10))s '"'"'%s'"'"'\n" "$LINENO"'
 [ ! -z "${TMUX:+x}" ] ||
 {
@@ -31,8 +31,8 @@ env_export normal_key
 env_export escape_key
 env_export assist_key
 env_export toggle_key
-env_export one_stage_policy # {0,1}
-env_export is_reloading     # {0,1}
+env_export one_stage_policy   #   {0,1}
+env_export is_reloading       #   {0,1}
 
 is_key() {
 	[ ! -z "${1:+x}" ] || return 1
@@ -44,30 +44,30 @@ is_key() {
 	esac
 }
 
-# [ -n "${prefix_key:+x}" ] ||
-#   export prefix_key="$(command tmux showenv -gh prefix_key       2> /dev/null | awk -F = '{print $2}')" || :
-# [ -n "${normal_key:+x}" ] ||
-#   export normal_key="$(command tmux showenv -gh normal_key       2> /dev/null | awk -F = '{print $2}')" || :
-# [ -n "${escape_key:+x}" ] ||
-#   export escape_key="$(command tmux showenv -gh escape_key       2> /dev/null | awk -F = '{print $2}')" || :
-# [ -n "${assist_key:+x}" ] ||
-#   export assist_key="$(command tmux showenv -gh assist_key       2> /dev/null | awk -F = '{print $2}')" || :
-#   export one_stage_policy="$(command tmux showenv -gh one_stage_policy 2> /dev/null | awk -F = '{print $2}')" || :
-#   export     is_reloading="$(command tmux showenv -gh is_reloading     2> /dev/null | awk -F = '{print $2}')" || :
+#   [ -n "${prefix_key:+x}" ] ||
+#   	export prefix_key="$(command tmux showenv -gh prefix_key       2> /dev/null | awk -F = '{print $2}')" || :
+#   [ -n "${normal_key:+x}" ] ||
+#   	export normal_key="$(command tmux showenv -gh normal_key       2> /dev/null | awk -F = '{print $2}')" || :
+#   [ -n "${escape_key:+x}" ] ||
+#   	export escape_key="$(command tmux showenv -gh escape_key       2> /dev/null | awk -F = '{print $2}')" || :
+#   [ -n "${assist_key:+x}" ] ||
+#   	export assist_key="$(command tmux showenv -gh assist_key       2> /dev/null | awk -F = '{print $2}')" || :
+#   	export one_stage_policy="$(command tmux showenv -gh one_stage_policy 2> /dev/null | awk -F = '{print $2}')" || :
+#   	export     is_reloading="$(command tmux showenv -gh is_reloading     2> /dev/null | awk -F = '{print $2}')" || :
 
 env_export TERM
 env_export TMUX
 # env_export TMUX_PANE # not a static value
 env_export TERM_PROGRAM
 
-# [ -n "${TERM:+x}" ] ||
-#               export TERM="$(command tmux showenv -gh TERM             2> /dev/null | awk -F = '{print $2}')" || :
-# [ -n "${TMUX:+x}" ] ||
-#               export TMUX="$(command tmux showenv -gh TMUX             2> /dev/null | awk -F = '{print $2}')" || :
-# [ -n "${TMUX_PANE:+x}" ] ||
-#          export TMUX_PANE="$(command tmux showenv -gh TMUX_PANE        2> /dev/null | awk -F = '{print $2}')" || :
-# [ -n "${TERM_PROGRAM:+x}" ] ||
-#       export TERM_PROGRAM="$(command tmux showenv -gh TERM_PROGRAM     2> /dev/null | awk -F = '{print $2}')" || :
+#   [ -n "${TERM:+x}" ] ||
+#   	export TERM="$(command tmux showenv -gh TERM             2> /dev/null | awk -F = '{print $2}')" || :
+#   [ -n "${TMUX:+x}" ] ||
+#   	export TMUX="$(command tmux showenv -gh TMUX             2> /dev/null | awk -F = '{print $2}')" || :
+#   [ -n "${TMUX_PANE:+x}" ] ||
+#   	export TMUX_PANE="$(command tmux showenv -gh TMUX_PANE        2> /dev/null | awk -F = '{print $2}')" || :
+#   [ -n "${TERM_PROGRAM:+x}" ] ||
+#   	export TERM_PROGRAM="$(command tmux showenv -gh TERM_PROGRAM     2> /dev/null | awk -F = '{print $2}')" || :
 
 ! : "${TERM:="tmux-256color"}" || export TERM
 export tput_lines_original="$(tput lines)"
@@ -92,9 +92,9 @@ tip_format() {
 
 	[ -z "${8:+x}" ] || length_8="${#8}"
 	[ -z "${4:+x}" ] || ! is_key "$4" ||
-		color_key_left_="${13-\033[1;047m}"
+		color_key_left_="${13-\033[0;007m}"
 	[ -z "${8:+x}" ] || ! is_key "$8" ||
-		color_key_right="${17-\033[1;047m}"
+		color_key_right="${17-\033[0;007m}"
 	#   printf "%b%-${indent_cols}s%-14s%-14s%-14s%-14s%-14s%b\n" "\033[1;044m" "" "copy-mode" " <- $(format $assist_key ) -> " "root-mode" "on top of" "$escape_key" "\033[0m" > /dev/stdout
 	#                        1 c                2 c   3 c   4 c   5 c    6 c   7 c   8 c   9 c   10 c
 	printf "%${indent_cols}.0s%b%-${INDENT}s%-14s%b%-4s%b%-8s%b%-4s%b%-14s%b%-4s%b%-8s%b%-4s%b%-14s%b\n" \
@@ -180,25 +180,26 @@ _rolling() {
 		trap 'return 0' INT TERM QUIT PIPE EXIT ||
 		trap 'return 0' INT TERM QUIT PIPE EXIT ERR
 	export refreshed=1
-	local cols="$cols_original" tput_lines="$tput_lines_original"
+	local cols="$cols_original" tput_lines="$tput_lines_original" client_prefix tmux_pane="$(command tmux display -p '#{pane_id}')"
 	while
-		case "$(command tmux display -p "#{client_prefix}")" in
+		client_prefix="$(command tmux display -p "#{client_prefix}")"
+		case "$client_prefix" in
 			"1") ;;
 			*)
 				break
 		esac
-		[ "$(command tmux display -p "#{client_prefix}")" = "1" ]    || return 0
-		[ "$(command tmux display -p '#{pane_id}')" = "$TMUX_PANE" ] || return 0
-		[ $refreshed -eq 1 ]                                          || return 0
+		[ "$client_prefix" = "1"      ] || return 0
+		[ "$tmux_pane" = "$TMUX_PANE" ] || return 0
+		[ $refreshed -eq 1            ] || return 0
 	do
 
-		# tput_lines="$(tput lines)"
-		# [ "$tput_lines_original" -eq "$tput_lines" ] ||
-		# {
-		#   tput cup "$tput_lines"
-		#   tput_lines_original="$tput_lines"
-		# }
-			tput_lines="$(($(tput lines) - 4))" # should use the real lines of the content
+		#   tput_lines="$(tput lines)"
+		#   [ "$tput_lines_original" -eq "$tput_lines" ] ||
+		#   {
+		#     tput cup "$tput_lines"
+		#     tput_lines_original="$tput_lines"
+		#   }
+			tput_lines="$(($(tput lines) - 4))"   #   should use the real lines of the content
 		#   tput_lines="$(tput lines)"
 		[ "$static_lines" -eq "$tput_lines" ] ||
 		{
@@ -216,17 +217,17 @@ _rolling() {
 
 		tput cup "$static_lines"
 		tput cud1
-		# tput cud1
-		# printf "%*s\r" "$cols" "$(
-		# tput sc
-		# tput cud1
-		# tput cuu1
-		# tput cud1
+		#   tput cud1
+		#   printf "%*s\r" "$cols" "$(
+		#   tput sc
+		#   tput cud1
+		#   tput cuu1
+		#   tput cud1
 		[ "$prefix_key" = "Escape" ] &&
 		{
 		#   printf "%b%-${INDENT}s%-28s%s%b\r" "\033[1;042m" "" "prefix-mode <- $escape_key" "$([ "$one_stage_policy" = "1" ] && printf '%s' "toggle" || printf '%s' "[ -> copy [ -> root")" "\033[0m" > /dev/stdout
 		#   printf "$(printf "%${cols}.0s" "")%b%-${INDENT}s%-14s%-14s%-14s%-14s%b%b%-14s%b\r" "\033[1;044m" "" "root-mode" " <- [   -- " "copy-mode" " <- [   -- " "\033[0m" "\033[1;042m" "prefix-mode" "\033[0m" > /dev/stdout
-			tip_format "$cols" "root-mode" " <- " "[" " -- " "copy-mode" " <- " "[" " -- " "prefix-mode" "\033[1;044m" "\033[1;044m" "\033[1;044m" "\033[1;044m" "\033[1;044m" "\033[1;044m" "\033[1;047m" "\033[1;042m" "\033[1;042m"
+			tip_format "$cols" "root-mode" " <- " "[" " -- " "copy-mode" " <- " "[" " -- " "prefix-mode" "\033[1;044m" "\033[1;044m" "\033[1;044m" "\033[1;044m" "\033[1;044m" "\033[1;044m" "\033[0;007m" "\033[1;042m" "\033[1;042m"
 		} || {
 			[ "$normal_key" = "Escape" ] && [ -n "${assist_key:+x}" ] &&
 			printf "%b%-${INDENT}s%-28s%s%b\r" "\033[1;042m" "" "prefix-mode <- $assist_key" "toggle on top of $escape_key" "\033[0m" > /dev/stdout || :
@@ -234,8 +235,8 @@ _rolling() {
 		tput cuu1
 		tput cuu1
 		tput rc
-		# # tput rc 1 # tput: unknown terminfo capability '1'
-		# # )"
+		#   #   tput rc 1   #   tput: unknown terminfo capability '1'
+		#   #   )"
 		#   command tmux run -C "color_prefix"
 		#   command tmux select-pane -P "bg=$prefix_background"
 		#   command tmux set -p window-active-style bg=$prefix_background
@@ -243,17 +244,17 @@ _rolling() {
 
 		tput cup "$static_lines"
 		tput cud1
-		# tput cud1
-		# printf "%*s\r" "$cols" "$(
-		# tput sc
-		# tput cud1
-		# tput cuu1
-		# tput cud1
+		#   tput cud1
+		#   printf "%*s\r" "$cols" "$(
+		#   tput sc
+		#   tput cud1
+		#   tput cuu1
+		#   tput cud1
 		[ "$prefix_key" = "Escape" ] &&
 		{
 		#   printf "%b%-${INDENT}s%-28s%s%b\r" "\033[1;007m" "" "prefix-mode <- $escape_key" "$([ "$one_stage_policy" = "1" ] && printf '%s' "toggle" || printf '%s' "[ -> copy [ -> root")" "\033[0m" > /dev/stdout
 		#   printf "%${cols}.0s%b%-${INDENT}s%-14s%-14s%b%b%-14s%-14s%-14s%b\r" "" "\033[1;044m" "" "root-mode" " <- [   -- " "\033[0m" "\033[1;042m" "copy-mode" " <- [   -- " "prefix-mode" "\033[0m" > /dev/stdout
-			tip_format "$cols" "root-mode" " <- " "[" " -- " "copy-mode" " <- " "[" " -- " "prefix-mode" "\033[1;044m" "\033[1;044m" "\033[1;047m" "\033[1;042m" "\033[1;042m" "\033[1;042m" "\033[1;042m" "\033[1;042m" "\033[1;042m"
+			tip_format "$cols" "root-mode" " <- " "[" " -- " "copy-mode" " <- " "[" " -- " "prefix-mode" "\033[1;044m" "\033[1;044m" "\033[0;007m" "\033[1;042m" "\033[1;042m" "\033[1;042m" "\033[1;042m" "\033[1;042m" "\033[1;042m"
 		} || {
 			[ "$normal_key" = "Escape" ] && [ -n "${assist_key:+x}" ] &&
 			printf "%b%-${INDENT}s%-28s%s%b\r" "\033[1;007m" "" "prefix-mode <- $assist_key" "toggle on top of $escape_key" "\033[0m" > /dev/stdout || :
@@ -261,8 +262,8 @@ _rolling() {
 		tput cuu1
 		tput cuu1
 		tput rc
-		# # tput rc 1 # tput: unknown terminfo capability '1'
-		# # )"
+		#   #   tput rc 1   #   tput: unknown terminfo capability '1'
+		#   #   )"
 		#   command tmux run -C "color_normal"
 		#   command tmux select-pane -P bg=terminal
 		#   command tmux set -p window-active-style bg=terminal
@@ -270,10 +271,10 @@ _rolling() {
 
 		tput cup "$static_lines"
 		tput cud1
-		# printf "%*s\r" "$cols" "$(
-		# tput sc
-		# tput cud1
-		# tput cuu1
+		#   printf "%*s\r" "$cols" "$(
+		#   tput sc
+		#   tput cud1
+		#   tput cuu1
 		[ "$prefix_key" = "Escape" ] &&
 		{
 		#   printf "%b%-${INDENT}s%-28s%s%b\r" "\033[1;007m" "" "prefix-mode <- $escape_key" "$([ "$one_stage_policy" = "1" ] && printf '%s' "toggle" || printf '%s' "[ -> copy [ -> root")" "\033[0m" > /dev/stdout
@@ -287,34 +288,34 @@ _rolling() {
 		tput cuu1
 		tput rc
 
-		# # tput rc 1 # tput: unknown terminfo capability '1'
-		# # )"
+		#   #   tput rc 1   #   tput: unknown terminfo capability '1'
+		#   #   )"
 		sleep 0.75
-	# tput rc
-	# tput cuu1
+	#   tput rc
+	#   tput cuu1
 	done
 }
 
 # The "_rolling" function keeps redrawing the command input/edit line, so we have to quit it when the current user has been switched into the root-mode of tmux
 rolling () {
-	# [ "$(command tmux display -p "#{client_prefix}")" = '1' ] ||
-	# command tmux switch-client -T prefix #   command tmux run -C "escape_on_root"
+	#   [ "$(command tmux display -p "#{client_prefix}")" = '1' ] ||
+	#   command tmux switch-client -T prefix   #   command tmux run -C "escape_on_root"
 	export refreshed=0
 	local pid_rolling="$(tmux show -pqv "@pid_rolling")"
 	[ -z "${pid_rolling:+x}" ] ||
-	[ "$(ps -eo pid= | awk "\$1 == \"$pid_rolling\" { \$1 = \$1; print \$1 }")" != "$pid_rolling" ] || # ! pid_alive ${pid_rolling-} ||
+	[ "$(ps -eo pid= | awk "\$1 == \"$pid_rolling\" { \$1 = \$1; print \$1 }")" != "$pid_rolling" ] ||   #   ! pid_alive ${pid_rolling-} ||
 		execute $pid_rolling
 	(
-	_rolling & export pid_rolling=$! #   _rolling
+	_rolling & export pid_rolling=$!   #   _rolling
 	command tmux set -p -t "$TMUX_PANE" @pid_rolling "$pid_rolling"
 	)
 }
 
-# alias rolling='command tmux switch-client -T prefix && . $XDG_CONFIG_HOME/tmux/default-command'
+#   alias rolling='command tmux switch-client -T prefix && . $XDG_CONFIG_HOME/tmux/default-command'
 
-# ! escape_on_root_event_exists ||
-# [ "$is_reloading" = "1" ] || # never use -eq 1 on a value returned by tmux
-# rolling
+#   ! escape_on_root_event_exists ||
+#   [ "$is_reloading" = "1" ] ||   #   never use -eq 1 on a value returned by tmux
+#   rolling
 
 #   command tmux send-prefix
 #   command tmux send-keys Escape
